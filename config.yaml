@@ -1,0 +1,27 @@
+mqtt:
+  host: "my.ha-mqtt.url"
+  port: 1883
+  username: "my-mqtt-user"
+  password: "my-mqtt-password"
+
+printer:
+  port: "/dev/ttyAMA0"
+  bauds: 9600
+
+filters:
+  maxRows:
+    title: 4
+    description: 8
+
+locale: "en-gb" # https://github.com/moment/moment/tree/master/locale
+
+feeds:
+  - url: "http://feeds.bbci.co.uk/news/technology/rss.xml"
+    schema:
+      - "title"
+      - "description"
+    count: 5
+  - url: "http://feeds.bbci.co.uk/news/world/rss.xml"
+    schema:
+      - "title"
+    count: 5

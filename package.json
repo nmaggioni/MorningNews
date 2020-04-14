@@ -1,0 +1,29 @@
+{
+  "name": "morningnews",
+  "version": "1.0.0",
+  "description": "An MQTT and HomeAssistant driven automatic news printer",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node ./dist/index.js",
+    "build": "eslint ./src/** && tsc",
+    "tsc": "tsc",
+    "eslint": "eslint"
+  },
+  "author": "Niccolò Maggioni <nicco.maggioni@gmail.com>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "got": "10.7.0",
+    "js-yaml": "3.13.1",
+    "moment": "2.24.0",
+    "rss-parser": "3.7.6",
+    "serialport": "8.0.7",
+    "thermalprinter": "0.3.8"
+  },
+  "devDependencies": {
+    "@types/node": "13.11.1",
+    "@typescript-eslint/eslint-plugin": "2.27.0",
+    "@typescript-eslint/parser": "2.27.0",
+    "eslint": "6.8.0",
+    "typescript": "3.8.3"
+  }
+}
