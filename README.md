@@ -1,8 +1,19 @@
 # MorningNews
-
 > An MQTT and HomeAssistant driven automatic news printer
 
 ![Demo](/docs/images/demo.webp) <img src="https://raw.githubusercontent.com/nmaggioni/MorningNews/master/docs/images/demo_print.jpg" height="240" title="Demo print"> 
+
+### Table of Contents
+
+- [Requirements](#requirements)
+- [Wiring](#wiring)
+- [Configuration](#configuration)
+- [Installation](#installation)
+- [Usage with HomeAssistant](#usage-with-homeassistant)
+  - [Running without HomeAssistant](#running-without-homeassistant)
+- [3D-Printable case](#3d-printable-case)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
 ## Requirements
 
@@ -93,6 +104,10 @@ If everything else fails, power on the printer while holding the button on the f
 ##### Something is wrong with the contents of the feeds.
 
 Manually execute `SIMULATE_PRINTER=1 npm start` to show debug info and simulate the printer by outputting directly to screen.
+
+## Contributing
+
+Feel free to dive in! Open an issue or submit PRs.
 
 
 [pi-zero-w]: https://www.raspberrypi.org/products/raspberry-pi-zero-w/

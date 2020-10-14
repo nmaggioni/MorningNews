@@ -14,7 +14,12 @@ import threading
 from time import sleep
 import yaml
 
-mqtt_ha_prefix, mqtt_node_id, mqtt_printer_object_id, mqtt_paper_object_id, mqtt_error_object_id = 'homeassistant', 'morning_news_printer', 'printer', 'paper', 'error'
+# Your HomeAssistant MQTT autodiscovery prefix (https://www.home-assistant.io/docs/mqtt/discovery/#discovery_prefix)
+mqtt_ha_prefix = 'homeassistant'
+# Device-specific identifier (should be unique for each one, change it if you want to run multiple MorningNews printers)
+mqtt_node_id = 'morning_news_printer'
+
+mqtt_printer_object_id, mqtt_paper_object_id, mqtt_error_object_id = 'printer', 'paper', 'error'
 mqtt_printer_topic_config = '{}/switch/{}/{}/config'.format(mqtt_ha_prefix, mqtt_node_id, mqtt_printer_object_id)
 mqtt_printer_topic_state = '{}/switch/{}/{}/state'.format(mqtt_ha_prefix, mqtt_node_id, mqtt_printer_object_id)
 mqtt_printer_topic_availability = '{}/switch/{}/{}/availability'.format(mqtt_ha_prefix, mqtt_node_id, mqtt_printer_object_id)
@@ -25,7 +30,18 @@ mqtt_error_topic_config = '{}/binary_sensor/{}/{}/config'.format(mqtt_ha_prefix,
 mqtt_error_topic_state = '{}/binary_sensor/{}/{}/state'.format(mqtt_ha_prefix, mqtt_node_id, mqtt_error_object_id)
 config, script_dir = {}, ""
 
+
 def publish_ha_autodiscovery(client):
+    """ 
+    Lets HomeAssistant know about this device's properties.
+  
+    Publishes the latest configuration data via MQTT, replacing existing messages and retaining this one instead.
+    Refer to the official docs for the format and allowed keys: https://www.home-assistant.io/docs/mqtt/discovery/#examples
+  
+    Parameters: 
+    client (mqtt.Client): An active and connected MQTT client.
+    """
+
     printer_config = {
         "name": "Morning News",
         "unique_id": "{}_{}".format(mqtt_node_id, mqtt_printer_object_id),
@@ -70,17 +86,40 @@ def publish_ha_autodiscovery(client):
 
 
 def set_lwt(client):
+    """ 
+    Makes sure the device is marked as unavaliable in HA when it disconnects uncleanly (ex.: power loss, crash).
+  
+    Parameters: 
+    client (mqtt.Client): A **not yet connected** MQTT client.
+    """
+
     print("Presetting LWT as (offline)")
     client.will_set(mqtt_printer_topic_availability, payload="offline", retain=True)
     # Only a single LWT message is allowed by the standard MQTT specs
 
 
 def send_available(client):
+    """ 
+    Sets the device as "Available" (user interactions enabled) in HA.
+  
+    Parameters: 
+    client (mqtt.Client): An active and connected MQTT client.
+    """
+
     print("Setting availability to (online)")
     client.publish(mqtt_printer_topic_availability, payload="online", retain=True)
 
 
 def send_birth(client):
+    """ 
+    Resets the device's state in HA at (re)connection.
+
+    Sets the printer as inactive and resets all error sensors.
+  
+    Parameters: 
+    client (mqtt.Client): An active and connected MQTT client.
+    """
+    
     send_available(client)
     print("Resetting initial state to (off)")
     client.publish(mqtt_printer_topic_state, payload="off")
@@ -89,6 +128,12 @@ def send_birth(client):
 
 
 def on_connect(client, userdata, flags, rc):
+    """ 
+    Callback invoked after the client has connected to the MQTT server.
+
+    Refer to the module's docs: https://pypi.org/project/paho-mqtt/#callbacks
+    """
+    
     print("Connected with result code "+str(rc))
     publish_ha_autodiscovery(client)
     send_birth(client)
@@ -96,6 +141,12 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_disconnect(client, userdata, flags, rc):
+    """ 
+    Callback invoked after the client has disconnected from the MQTT server.
+
+    Refer to the module's docs: https://pypi.org/project/paho-mqtt/#callbacks
+    """
+    
     if rc == 0:
         print("Successfully disconnected")
     else:
@@ -103,16 +154,29 @@ def on_disconnect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, msg):
+    """ 
+    Callback invoked when the client receives a message from the MQTT server.
+
+    Refer to the module's docs: https://pypi.org/project/paho-mqtt/#callbacks
+    """
+    
     msg.payload = msg.payload.decode('utf-8')
     print(msg.topic+" "+str(msg.payload))
     if msg.topic == mqtt_printer_topic_command:
         if msg.payload == "on":
             threading.Thread(target=print_news).start()
         elif msg.payload == "off":
+            # TODO: try to stop an already running print
             client.publish(mqtt_printer_topic_state, payload="off")
 
 
 def print_news():
+    """
+    Actual print handler. Runs the feed fetching & printing script and reports the final status of the printer to HA.
+
+    Sets the printer as busy in HA, runs the printing wrapper script and handles exit code values that trigger error sensors.
+    """
+    
     print("Updating printer state with (on)")
     client.publish(mqtt_printer_topic_state, payload="on")
 
@@ -136,6 +200,12 @@ def print_news():
 
 
 def validate_config():
+    """
+    Validates the config loaded from the YAML file.
+
+    Only checks values that are relevant for this script, ignores the rest.
+    """
+
     try:
         if not isinstance(config['mqtt']['host'], str):
             raise TypeError()
@@ -153,8 +223,8 @@ def validate_config():
         exit(1)
 
 
-
 if __name__ == '__main__':
+    # Load the config from disk, preferring `config.local.yaml` over `config.yaml`
     script_dir = os.path.dirname(os.path.realpath(__file__))
     configPath = "{}/config.local.yaml".format(script_dir)
     if not os.path.isfile(configPath):
@@ -163,7 +233,8 @@ if __name__ == '__main__':
         config = yaml.load(configFile, Loader=yaml.Loader)
     validate_config()
 
-    client = mqtt.Client("MorningNewsPrinter")
+    # Prepare the MQTT client and set the LWT payload
+    client = mqtt.Client(mqtt_node_id)
     client.username_pw_set(config['mqtt']['username'], config['mqtt']['password'])
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
@@ -172,9 +243,12 @@ if __name__ == '__main__':
 
     while True:
         try:
+            # Actually connect to the MQTT server
             print("Connecting to MQTT broker")
-            client.connect(config['mqtt']['host'], config['mqtt']['port'], 60)
+            client.connect(config['mqtt']['host'], config['mqtt']['port'], 60)  # 60s client keep-alive
             client.loop_forever()
         except Exception as e:
+            # Log exceptions and try to recover
             print(e)
             sleep(3)
+            # TODO: disconnect client to ensure that no double connections are made?

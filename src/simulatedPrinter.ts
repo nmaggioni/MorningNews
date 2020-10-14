@@ -2,6 +2,10 @@
 
 let buffer = "";
 
+/**
+ * Mock of the `thermalprinter` interface, uses a string buffer to replicate the printer's
+ * output as closely as possible via the console instead of actually printing on paper.
+ */
 export class Printer {
   hasPaper = function (callback: Function): void {
     callback(true);

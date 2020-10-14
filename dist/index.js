@@ -29,6 +29,8 @@ const config = {
             ["description" /* DESCRIPTION */]: 8,
         },
         replacements: [
+            ["–", "-"],
+            ["‘", "'"],
             ["’", "'"],
             ["«", "\""],
             ["»", "\""],

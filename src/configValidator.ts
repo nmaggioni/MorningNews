@@ -8,6 +8,11 @@ function createBadKeyTypeError(key: string, expected: string): Error {
   return new Error(`Bad "${key}" config key type, expected ${expected}`);
 }
 
+/**
+ * Verifies the correctness of the imported YAML config file.
+ * @todo Rewrite this with better logic based on the desired final interface.
+ * @param externalConfig The loaded YAML object.
+ */
 export function validateExternalConfig(externalConfig: any): Error | undefined {
   if (!externalConfig.printer) {
     return createMissingKeyError("printer");

@@ -1,14 +1,17 @@
+// Single feed config entry
 export interface FeedConfig {
   url: string;
   schema: Array<FeedFields>;
   count: number;
 }
 
+// Feed fields to include in the output. Values get inlined.
 export const enum FeedFields {
   TITLE = "title",
   DESCRIPTION = "description",
 }
 
+// Internal config structure.
 export interface Config {
   serial: {
     port: string;
@@ -32,8 +35,10 @@ export interface Config {
   };
 }
 
+// Config structure that maps the relevant portion of the external YAML file.
+// Fields not used by this script are ignored.
 export interface ExternalConfig {
-  mqtt: any;
+  mqtt?: any;
   printer: {
     port: string;
     bauds: number;
@@ -48,11 +53,13 @@ export interface ExternalConfig {
   feeds: FeedConfig[];
 }
 
+// Feed representation after having beed fetched.
 export interface FetchedFeed {
   config: FeedConfig;
   body: string;
 }
 
+// Feed representation after having been parsed.
 export interface ParsedFeed {
   config: FeedConfig;
   feed: {
@@ -71,11 +78,13 @@ export interface ParsedFeed {
   };
 }
 
+// Single article representation when ready for printing.
 export interface PrintableFeedEntry {
   title?: string;
   description?: string;
 }
 
+// Entire feed representation when ready for printing.
 export interface PrintableFeed {
   title: string;
   entries: PrintableFeedEntry[];

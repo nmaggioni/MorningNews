@@ -15,22 +15,29 @@ const yaml = require("js-yaml");
 
 
 const config: Config = {
+  // Serial port config
   serial: {
     port: "/dev/ttyAMA0",
     bauds: 9600,
   },
-  printer: {  // https://github.com/xseignard/thermalPrinter/blob/master/src/printer.js#L12
+  // Thermal printer specs, see `thermalprinter`'s source.
+  // https://github.com/xseignard/thermalPrinter/blob/master/src/printer.js#L12
+  printer: {
     heatingTime: 120,
     heatingInterval: 2,
     chineseFirmware: true,
     charset: 1,
   },
   filters: {
+    // Maximum number of rows that each article's element is allowed to occupy.
     maxRows: {
       [FeedFields.TITLE]: 4,
       [FeedFields.DESCRIPTION]: 8,
     },
+    // Replace unprintable characters with printable alternatives. Maps `[OLD_CHAR, NEW_CHAR]`.
     replacements: [
+      ["–", "-"],
+      ["‘", "'"],
       ["’", "'"],
       ["«", "\""],
       ["»", "\""],
@@ -40,12 +47,19 @@ const config: Config = {
     ],
   },
   localization: {
-    moment: "en-gb", // https://github.com/moment/moment/tree/master/locale
+    // Default date formatting and day/month names.
+    // https://github.com/moment/moment/tree/master/locale
+    moment: "en-gb",
   },
 };
 
 const feeds: FeedConfig[] = [];
 
+/**
+ * Build the command queue for the printer and print out the formatted text.
+ * @param {PrintableFeed[]} printableFeeds See `prepareFeedsForPrinting`.
+ * @param printer A ready `thermalprinter` instance.
+ */
 async function printFeeds(printableFeeds: PrintableFeed[], printer?: any): Promise<void> {
   console.log("Enqueuing printer commands...");
   if (isSimulationActive() || printer === undefined) {
@@ -97,6 +111,11 @@ async function printFeeds(printableFeeds: PrintableFeed[], printer?: any): Promi
   });
 }
 
+/**
+ * Sort feeds alphabetically, ensures the order is always the same between multiple prints.
+ * Feeds could get misplaced due to network errors, retries or precedent key ordering.
+ * @param {PrintableFeed[]} printableFeeds See `prepareFeedsForPrinting`.
+ */
 function orderFeeds(printableFeeds: PrintableFeed[]): PrintableFeed[] {
   return printableFeeds.sort((a: PrintableFeed, b: PrintableFeed): number => {
     if (a.title < b.title) {
@@ -109,6 +128,12 @@ function orderFeeds(printableFeeds: PrintableFeed[]): PrintableFeed[] {
   });
 }
 
+/**
+ * Replaces all occurrencies of an unprintable char in a string with its printable alternative.
+ * See `config.filters.replacements`.
+ * @param {string} input The string to clean up.
+ * @return {string} The cleaned up string.
+ */
 function replaceFilteredChars(input: string): string {
   for (const replaceChar of config.filters.replacements) {
     if (input.includes(replaceChar[0])) {
@@ -118,6 +143,10 @@ function replaceFilteredChars(input: string): string {
   return input;
 }
 
+/**
+ * Prepare a single feed for printing (extract and trim fields).
+ * @param {ParsedFeed} parsedFeed See `parseFeed` and `prepareFeedsForPrinting`.
+ */
 async function prepareFeedForPrinting(parsedFeed: ParsedFeed): Promise<PrintableFeed> {
   const printableFeed: PrintableFeed = {
     title: parsedFeed.feed.title.length > 32 ? `${parsedFeed.feed.title.substring(0, 29)}...` : parsedFeed.feed.title,
@@ -145,6 +174,10 @@ async function prepareFeedForPrinting(parsedFeed: ParsedFeed): Promise<Printable
   return printableFeed;
 }
 
+/**
+ * Prepare all feeds for printing (extract and trim fields).
+ * @param {ParsedFeed[]} parsedFeeds See `parseFeeds`.
+ */
 async function prepareFeedsForPrinting(parsedFeeds: ParsedFeed[]): Promise<PrintableFeed[]> {
   const preparedFeeds: PrintableFeed[] = [];
   let counter = 0;
@@ -158,6 +191,10 @@ async function prepareFeedsForPrinting(parsedFeeds: ParsedFeed[]): Promise<Print
   return preparedFeeds;
 }
 
+/**
+ * Parse a single feed into an inspectable object.
+ * @param {FetchedFeed} fetchedFeed See `parseFeeds` and `fetchFeeds`.
+ */
 async function parseFeed(fetchedFeed: FetchedFeed): Promise<ParsedFeed> {
   const rssParser = new RssParser();
   const parsedFeed = await rssParser.parseString(fetchedFeed.body);
@@ -167,6 +204,10 @@ async function parseFeed(fetchedFeed: FetchedFeed): Promise<ParsedFeed> {
   };
 }
 
+/**
+ * Parse all fetched feeds into inspectable objects.
+ * @param {FetchedFeed[]} fetchedFeeds See `fetchFeeds`.
+ */
 async function parseFeeds(fetchedFeeds: FetchedFeed[]): Promise<ParsedFeed[]> {
   const parsedFeeds: ParsedFeed[] = [];
   let counter = 0;
@@ -180,6 +221,10 @@ async function parseFeeds(fetchedFeeds: FetchedFeed[]): Promise<ParsedFeed[]> {
   return parsedFeeds;
 }
 
+/**
+ * Fetch a single feed's body over the network.
+ * See `fetchFeeds`.
+ */
 async function fetchFeed(feedUrl: string): Promise<string> {
   const res = await got(feedUrl, {
     method: "GET",
@@ -197,6 +242,9 @@ async function fetchFeed(feedUrl: string): Promise<string> {
   return res.body;
 }
 
+/**
+ * Fetch all feeds' raw bodies over the network.
+ */
 async function fetchFeeds(): Promise<FetchedFeed[]> {
   const feedBodies: FetchedFeed[] = [];
   let counter = 0;
@@ -214,6 +262,10 @@ async function fetchFeeds(): Promise<FetchedFeed[]> {
   return feedBodies;
 }
 
+/**
+ * Wrapper that handles each step of fetching and processing feeds.
+ * @returns {Promise<PrintableFeed[]>} An array of ready to print feed articles.
+ */
 async function fetchAndProcessFeeds(): Promise<PrintableFeed[]> {
   const fetchedFeeds = await fetchFeeds();
   const parsedFeeds = await parseFeeds(fetchedFeeds);
@@ -221,6 +273,10 @@ async function fetchAndProcessFeeds(): Promise<PrintableFeed[]> {
   return orderFeeds(printableFeeds);
 }
 
+/**
+ * Wrapper that throws if the printer is out of paper.
+ * @param printer A ready `thermalprinter` instance.
+ */
 function printerHasPaper(printer): Promise<void> {
   return new Promise((resolve, reject) => {
     printer.hasPaper((hasPaper) => {
@@ -237,18 +293,25 @@ function isSimulationActive(): boolean {
   return process.env["SIMULATE_PRINTER"] !== undefined;
 }
 
+/**
+ * Load and validate the external YAML config.
+ */
 async function loadConfig(): Promise<void> {
+  // `config.local.yaml` has precedence over `config.yaml`.
   let configPath = path.resolve(__dirname, "..", "config.local.yaml");
   try {
     await fsp.access(configPath, fs.constants.F_OK | fs.constants.R_OK);
   } catch {
     configPath = path.resolve(__dirname, "..", "config.yaml");
   }
+  // Load and validate config
   const externalConfig = yaml.safeLoad(fs.readFileSync(configPath, "utf8")) as ExternalConfig;
   const configError = validateExternalConfig(externalConfig);
   if (configError) {
+    // Rethrow validation error if needed, avoids cluttering the validator module.
     throw configError;
   }
+  // Actually map the external config values to the internal ones.
   config.serial.port = externalConfig.printer.port;
   config.serial.bauds = externalConfig.printer.bauds;
   config.filters.maxRows = externalConfig.filters.maxRows;
@@ -258,6 +321,9 @@ async function loadConfig(): Promise<void> {
   }
 }
 
+/**
+ * Setup the environment and apply config side effects.
+ */
 async function init(): Promise<void> {
   if (!isSimulationActive()) {
     try {
@@ -269,19 +335,27 @@ async function init(): Promise<void> {
   moment.locale(config.localization.moment);
 }
 
+/**
+ * Entry point for fetching and printing feeds.
+ */
 async function start(): Promise<void> {
   if (isSimulationActive()) {
+    // Do not handle the serial port and printing errors when simulating the printer
     console.log("Simulation active, skipping serial port and printer handling.");
     const processedFeeds = await fetchAndProcessFeeds();
     console.log(`\n${util.inspect(processedFeeds, false, null, true)}\n`);
     await printFeeds(processedFeeds);
+
   } else {
+    // Setup the serial port and its event handlers
     const serialport = new SerialPort(config.serial.port, { baudRate: config.serial.bauds });
 
     serialport.on("open", () => {
+      // Initialize comms with the printer once connection is estabilished
       console.log("Serial port opened, waiting for printer...");
       const printer = new Printer(serialport, config.printer);
       printer.on("ready", async () => {
+        // Check if the printer has paper before continuing
         try {
           await printerHasPaper(printer);
         } catch (e) {
@@ -304,13 +378,18 @@ async function start(): Promise<void> {
   }
 }
 
+
+// Main loop
 (async (): Promise<void> => {
   try {
+    // Load config and setup environment.
     await loadConfig();
     await init();
   } catch (e) {
     console.error(e);
     process.exit(1);
   }
+
+  // Fetch and print feeds.
   await start();
 })();
