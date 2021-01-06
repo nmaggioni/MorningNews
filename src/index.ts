@@ -351,6 +351,11 @@ async function start(): Promise<void> {
     const serialport = new SerialPort(config.serial.port, { baudRate: config.serial.bauds });
 
     serialport.on("open", () => {
+      // Set a timeout for connecting to the printer
+      const printerTimeout = setTimeout(() => {
+        console.error("Printer is unresponsive, aborting");
+        process.exit(1);
+      }, 5000);
       // Initialize comms with the printer once connection is estabilished
       console.log("Serial port opened, waiting for printer...");
       const printer = new Printer(serialport, config.printer);
@@ -362,6 +367,9 @@ async function start(): Promise<void> {
           console.error(e);
           process.exit(2);
         }
+        // State was read successfully, clear the connection timeout
+        clearTimeout(printerTimeout);
+        // Proceed with printing
         console.log("Printer ready, starting to fetch feeds.");
         await printFeeds(await fetchAndProcessFeeds(), printer);
       });

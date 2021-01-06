@@ -2,6 +2,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-ignore */
 Object.defineProperty(exports, "__esModule", { value: true });
 let buffer = "";
+/**
+ * Mock of the `thermalprinter` interface, uses a string buffer to replicate the printer's
+ * output as closely as possible via the console instead of actually printing on paper.
+ */
 class Printer {
     constructor() {
         this.hasPaper = function (callback) {
