@@ -1,6 +1,6 @@
 {
   "name": "morningnews",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "An MQTT and HomeAssistant driven automatic news printer",
   "main": "dist/index.js",
   "scripts": {
